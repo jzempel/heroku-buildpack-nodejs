@@ -172,6 +172,14 @@ install_npm() {
 }
 
 function build_dependencies() {
+  if [ "$GIT_SSH_KEY" != "" ]; then
+    info "Detected SSH key for git; Launching ssh-agent and loading key"
+    echo $GIT_SSH_KEY | base64 --decode > id_rsa
+    eval `ssh-agent -s` 2>&1 >/dev/null
+    ssh-add id_rsa >/dev/null 2>&1
+    rm id_rsa
+    (ssh -oStrictHostKeyChecking=no -q -T git@github.com || true) >/dev/null 2>&1
+  fi
 
   if [ "$modules_source" == "" ]; then
     info "Skipping dependencies (no source for node_modules)"
@@ -186,6 +194,11 @@ function build_dependencies() {
     restore_cache
     info "Installing node modules"
     npm install --unsafe-perm --quiet --userconfig $build_dir/.npmrc 2>&1 | indent
+  fi
+
+  if [ "$GIT_SSH_KEY" != "" ]; then
+    eval `ssh-agent -k` 2>&1 >/dev/null
+    export GIT_SSH_KEY=0
   fi
 }
 
